@@ -70,7 +70,8 @@ export default {
         const overallRank = predictOverallRank(
         totalScore,
         maxMarks,
-        totalCandidates
+        totalCandidates,
+        exam
         );
 
         // 🔥 Dynamic Subject Rank Prediction
@@ -84,7 +85,8 @@ export default {
             subjectRanks[subject] = predictSubjectRank(
             score,
             models.subject[subject].max_score,
-            totalCandidates
+            overallRank,
+            totalCandidates,
             );
         } else {
             subjectRanks[subject] = null;
@@ -98,7 +100,8 @@ export default {
     const projectedRank = predictOverallRank(
     projectedScore,
     maxMarks,
-    totalCandidates
+    totalCandidates,
+    exam
     );
 
     const rankImprovement = overallRank - projectedRank;

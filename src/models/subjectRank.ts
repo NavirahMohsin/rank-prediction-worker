@@ -1,12 +1,18 @@
 export function predictSubjectRank(
-  subjectScore: number,
-  maxScore: number,
-  totalCandidates: number
+  subjectScore,
+  maxScore,
+  overallRank,
+  totalCandidates
 ) {
-  const ratio = subjectScore / maxScore;
-  const exponent = 2.8;
+  const subjectRatio = subjectScore / maxScore;
 
-  let rank = totalCandidates * (1 - Math.pow(ratio, exponent));
+  const overallPercentile = 1 - overallRank / totalCandidates;
+
+  // Adjust subject percentile relative to overall
+  const subjectPercentile =
+    overallPercentile * 0.6 + subjectRatio * 0.4;
+
+  let rank = totalCandidates * (1 - subjectPercentile);
 
   if (rank < 1) rank = 1;
 
