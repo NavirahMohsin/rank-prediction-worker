@@ -1,8 +1,8 @@
 export function predictSubjectRank(
-  subjectScore,
-  maxScore,
-  overallRank,
-  totalCandidates
+  subjectScore: number,
+  maxScore: number,
+  overallRank: number,
+  totalCandidates: number
 ) {
   const subjectRatio = subjectScore / maxScore;
 
