@@ -1,0 +1,161 @@
+{
+  "botany": {
+    "model_type": "XGBoost Regressor",
+    "subject": "botany",
+    "exam": "AP EAPCET BiPC",
+    "max_score": 40,
+    "num_questions": 40,
+    "training_samples": 40000,
+    "test_samples": 10000,
+    "features": [
+      "botany_score",
+      "biology_score",
+      "total_score",
+      "attempted_questions",
+      "correct_answers",
+      "accuracy_percent"
+    ],
+    "metrics": {
+      "test_r2": 0.999992311000824,
+      "test_mae": 28.985858917236328,
+      "test_rmse": 44.2923994652652,
+      "cv_r2_mean": 0.9999897480010986,
+      "cv_r2_std": 1.5980270937383384e-06,
+      "cv_mae_mean": 31.129377365112305
+    },
+    "feature_importance": {
+      "botany_score": 0.838644802570343,
+      "biology_score": 0.03939947858452797,
+      "total_score": 0.12097318470478058,
+      "attempted_questions": 0.00032650938373990357,
+      "correct_answers": 0.0005640688468702137,
+      "accuracy_percent": 9.196155588142574e-05
+    }
+  },
+  "zoology": {
+    "model_type": "XGBoost Regressor",
+    "subject": "zoology",
+    "exam": "AP EAPCET BiPC",
+    "max_score": 40,
+    "num_questions": 40,
+    "training_samples": 40000,
+    "test_samples": 10000,
+    "features": [
+      "zoology_score",
+      "biology_score",
+      "total_score",
+      "attempted_questions",
+      "correct_answers",
+      "accuracy_percent"
+    ],
+    "metrics": {
+      "test_r2": 0.9999924898147583,
+      "test_mae": 28.999080657958984,
+      "test_rmse": 43.78695425901704,
+      "cv_r2_mean": 0.9999900937080384,
+      "cv_r2_std": 1.0967254638671874e-06,
+      "cv_mae_mean": 31.559519577026368
+    },
+    "feature_importance": {
+      "zoology_score": 0.8358638882637024,
+      "biology_score": 0.03837716206908226,
+      "total_score": 0.124728724360466,
+      "attempted_questions": 0.00028853394906036556,
+      "correct_answers": 0.0005602238234132528,
+      "accuracy_percent": 0.00018152107077185065
+    }
+  },
+  "biology": {
+    "model_type": "XGBoost Regressor",
+    "subject": "biology",
+    "exam": "AP EAPCET BiPC",
+    "max_score": 80,
+    "num_questions": 80,
+    "training_samples": 40000,
+    "test_samples": 10000,
+    "features": [
+      "biology_score",
+      "total_score",
+      "attempted_questions",
+      "correct_answers",
+      "accuracy_percent"
+    ],
+    "metrics": {
+      "test_r2": 0.9999954700469971,
+      "test_mae": 21.309797286987305,
+      "test_rmse": 32.450354585047485,
+      "cv_r2_mean": 0.9999945998191834,
+      "cv_r2_std": 1.0245065784390162e-06,
+      "cv_mae_mean": 22.34613456726074
+    },
+    "feature_importance": {
+      "biology_score": 0.8201039433479309,
+      "total_score": 0.17713147401809692,
+      "attempted_questions": 0.0003993624122813344,
+      "correct_answers": 0.002212787978351116,
+      "accuracy_percent": 0.00015251588774845004
+    }
+  },
+  "physics": {
+    "model_type": "XGBoost Regressor",
+    "subject": "physics",
+    "exam": "AP EAPCET BiPC",
+    "max_score": 40,
+    "num_questions": 40,
+    "training_samples": 40000,
+    "test_samples": 10000,
+    "features": [
+      "physics_score",
+      "total_score",
+      "attempted_questions",
+      "correct_answers",
+      "accuracy_percent"
+    ],
+    "metrics": {
+      "test_r2": 0.9999884366989136,
+      "test_mae": 43.14549255371094,
+      "test_rmse": 64.80198956484669,
+      "cv_r2_mean": 0.9999869346618653,
+      "cv_r2_std": 9.50240868729574e-07,
+      "cv_mae_mean": 45.35401992797851
+    },
+    "feature_importance": {
+      "physics_score": 0.8648037910461426,
+      "total_score": 0.12848763167858124,
+      "attempted_questions": 0.0002081824786728248,
+      "correct_answers": 0.00475346390157938,
+      "accuracy_percent": 0.00174675730522722
+    }
+  },
+  "chemistry": {
+    "model_type": "XGBoost Regressor",
+    "subject": "chemistry",
+    "exam": "AP EAPCET BiPC",
+    "max_score": 40,
+    "num_questions": 40,
+    "training_samples": 40000,
+    "test_samples": 10000,
+    "features": [
+      "chemistry_score",
+      "total_score",
+      "attempted_questions",
+      "correct_answers",
+      "accuracy_percent"
+    ],
+    "metrics": {
+      "test_r2": 0.9999918341636658,
+      "test_mae": 33.9339485168457,
+      "test_rmse": 52.20287245524067,
+      "cv_r2_mean": 0.9999890089035034,
+      "cv_r2_std": 1.2351831290234202e-06,
+      "cv_mae_mean": 37.615745544433594
+    },
+    "feature_importance": {
+      "chemistry_score": 0.8638418316841125,
+      "total_score": 0.13031171262264252,
+      "attempted_questions": 0.00022324528254102916,
+      "correct_answers": 0.004831608850508928,
+      "accuracy_percent": 0.0007915557362139225
+    }
+  }
+}
