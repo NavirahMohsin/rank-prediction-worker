@@ -1,67 +1,41 @@
-export interface ProbabilityRange {
+export interface RankBand {
+  predicted_rank: number;
   min_rank: number;
   max_rank: number;
-  probability: number;
-  label: string;
-}
-
-export interface ProbabilityDistribution {
-  ranges: ProbabilityRange[];
   percentile: number;
 }
 
-export function generateProbabilityDistribution(
-  predictedRank: number,
-  totalCandidates: number
-): ProbabilityDistribution {
-  const ranges: ProbabilityRange[] = [];
+export function generateRankSensitivityBand(
+  totalScore: number,
+  maxMarks: number,
+  totalCandidates: number,
+  predictRankFromScore: (score: number) => number
+): RankBand {
 
-  // ±5% most likely: 40% probability (1σ bounds)
-  const range_5pct_min = Math.max(1, Math.ceil(predictedRank * 0.95));
-  const range_5pct_max = Math.min(totalCandidates, Math.floor(predictedRank * 1.05));
-  ranges.push({
-    min_rank: range_5pct_min,
-    max_rank: range_5pct_max,
-    probability: 40,
-    label: "Most Likely (±5%)"
-  });
+  // Core predicted rank
+  const predictedRank = predictRankFromScore(totalScore);
 
-  // ±10% high probability: 60% probability
-  // This encompasses the 5% range but extends to 10%
-  const range_10pct_min = Math.max(1, Math.ceil(predictedRank * 0.90));
-  const range_10pct_max = Math.min(totalCandidates, Math.floor(predictedRank * 1.10));
-  ranges.push({
-    min_rank: range_10pct_min,
-    max_rank: range_10pct_max,
-    probability: 60,
-    label: "Probable Range (±10%)"
-  });
+  // Score sensitivity window (±2 marks)
+  const scoreDelta = totalScore < 60 ? 3 : 2;
 
-  // 68% range: 1σ standard deviation
-  const range_68_min = Math.max(1, Math.ceil(predictedRank * 0.9));
-  const range_68_max = Math.min(totalCandidates, Math.floor(predictedRank * 1.1));
-  ranges.push({
-    min_rank: range_68_min,
-    max_rank: range_68_max,
-    probability: 68,
-    label: "68% Confidence (1σ)"
-  });
+  const lowerScore = Math.max(0, totalScore - scoreDelta);
+  const higherScore = Math.min(maxMarks, totalScore + scoreDelta);
 
-  // 95% range: 2σ standard deviation
-  const range_95_min = Math.max(1, Math.ceil(predictedRank * 0.8));
-  const range_95_max = Math.min(totalCandidates, Math.floor(predictedRank * 1.2));
-  ranges.push({
-    min_rank: range_95_min,
-    max_rank: range_95_max,
-    probability: 95,
-    label: "95% Confidence (2σ)"
-  });
+  const betterRank = predictRankFromScore(higherScore);
+  const worseRank = predictRankFromScore(lowerScore);
 
-  // Calculate percentile: what % of candidates rank better than us
-  const percentile = ((totalCandidates - predictedRank) / totalCandidates) * 100;
+  // Ensure correct ordering
+  const minRank = Math.min(betterRank, worseRank, predictedRank);
+  const maxRank = Math.max(betterRank, worseRank, predictedRank);
+
+  // Percentile calculation
+  const percentile =
+    ((totalCandidates - predictedRank) / totalCandidates) * 100;
 
   return {
-    ranges,
+    predicted_rank: predictedRank,
+    min_rank: minRank,
+    max_rank: maxRank,
     percentile: Math.round(percentile * 100) / 100
   };
 }

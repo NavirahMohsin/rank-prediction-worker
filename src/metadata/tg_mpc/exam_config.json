@@ -1,0 +1,26 @@
+{
+  "exam_config": {
+    "total_questions": 160,
+    "max_marks": 160,
+    "negative_marking": true,
+    "total_candidates": 207190,
+    "qualified_candidates": 151779,
+    "tiebreak_order": [
+      "maths_score",
+      "physics_score",
+      "chemistry_score"
+    ]
+  },
+  "maths": {
+    "max_score": 80,
+    "num_questions": 80
+  },
+  "physics": {
+    "max_score": 40,
+    "num_questions": 40
+  },
+  "chemistry": {
+    "max_score": 40,
+    "num_questions": 40
+  }
+}

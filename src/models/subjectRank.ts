@@ -1,20 +1,44 @@
 export function predictSubjectRank(
+  subjectName: string,
   subjectScore: number,
-  maxScore: number,
+  maxSubjectScore: number,
+  totalScore: number,
+  maxTotalMarks: number,
   overallRank: number,
-  totalCandidates: number
+  totalCandidates: number,
+  exam: string
 ) {
-  const subjectRatio = subjectScore / maxScore;
+  if (!subjectScore || subjectScore <= 0) {
+    return overallRank;
+  }
 
-  const overallPercentile = 1 - overallRank / totalCandidates;
+  const subjectStrength = subjectScore / maxSubjectScore;
+  const overallStrength = totalScore / maxTotalMarks;
 
-  // Adjust subject percentile relative to overall
-  const subjectPercentile =
-    overallPercentile * 0.6 + subjectRatio * 0.4;
+  const performanceGap = subjectStrength - overallStrength;
 
-  let rank = totalCandidates * (1 - subjectPercentile);
+  // Base multiplier
+  let impactMultiplier = 0.7;
 
-  if (rank < 1) rank = 1;
+  // Increase weight for 80-mark subjects
+  if (maxSubjectScore === 80) {
+    impactMultiplier += 0.2; // weight advantage
+  }
 
-  return Math.round(rank);
+  // Tie-breaker priority boost
+  if (
+    ((exam === "ap_mpc" || exam === "tg_mpc") && (subjectName === "mathematics" || subjectName === "maths" || subjectName === "maths_score")) ||
+    ((exam === "ap_bipc" || exam === "tg_bipc") && subjectName === "biology")
+  ) {
+    impactMultiplier += 0.15;
+  }
+
+  const rankShift =
+    overallRank * performanceGap * impactMultiplier;
+
+  let subjectRank = overallRank - rankShift;
+
+  subjectRank = Math.max(1, Math.min(totalCandidates, subjectRank));
+
+  return Math.round(subjectRank);
 }

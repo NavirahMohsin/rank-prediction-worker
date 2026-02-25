@@ -1,11 +1,10 @@
-import { loadModels } from "./models/modelLoader";
 import { predictOverallRank } from "./models/overallRank";
 import { predictSubjectRank } from "./models/subjectRank";
-import { predictTrajectory, generateFullTrajectory } from "./models/trajectory";
-import { generateProbabilityDistribution } from "./models/probability";
+import { generateFullTrajectory } from "./models/trajectory";
 import { generateWhatIfScenarios } from "./models/scenarios";
+import { generateRankSensitivityBand } from "./models/probability";
 
-const SUPPORTED_EXAMS = ["tg_bipc", "ap_mpc", "ap_bipc"];
+const SUPPORTED_EXAMS = ["tg_mpc", "tg_bipc", "ap_mpc", "ap_bipc"];
 
 function getCorsHeaders(): Record<string, string> {
   return {
@@ -15,222 +14,157 @@ function getCorsHeaders(): Record<string, string> {
   };
 }
 
-function validateInput(body: any) {
-  if (!body.exam) {
-    throw new Error("Exam type is required");
-  }
+import tg_mpc_config from "./metadata/tg_mpc/exam_config.json";
+import tg_bipc_config from "./metadata/tg_bipc/exam_config.json";
+import ap_mpc_config from "./metadata/ap_mpc/exam_config.json";
+import ap_bipc_config from "./metadata/ap_bipc/exam_config.json";
 
-  const exam = body.exam.toLowerCase();
-  if (!SUPPORTED_EXAMS.includes(exam)) {
-    throw new Error(`Unsupported exam. Must be one of: ${SUPPORTED_EXAMS.join(", ")}`);
-  }
-
-  if (typeof body.totalScore !== "number") {
-    throw new Error("totalScore must be a number");
+function loadExamConfig(exam: string) {
+  switch (exam) {
+    case "tg_mpc":
+      return tg_mpc_config;
+    case "tg_bipc":
+      return tg_bipc_config;
+    case "ap_mpc":
+      return ap_mpc_config;
+    case "ap_bipc":
+      return ap_bipc_config;
+    default:
+      throw new Error("Unsupported exam config");
   }
 }
 
-async function handleV1Predict(body: any, corsHeaders: Record<string, string>) {
-  validateInput(body);
-
-  const { exam, totalScore, subjectScores = {} } = body;
-
-  const models = await loadModels(exam);
-
-  const maxMarks = models.overall.exam_config.max_marks;
-  const totalCandidates = models.overall.exam_config.total_candidates;
-
-  const overallRank = predictOverallRank(
-    totalScore,
-    maxMarks,
-    totalCandidates,
-    exam
-  );
-
-  // Dynamic Subject Rank Prediction
-  const subjectRanks: Record<string, number | null> = {};
-
-  for (const subject in models.subject) {
-    const score = subjectScores[subject];
-
-    if (score !== undefined) {
-      subjectRanks[subject] = predictSubjectRank(
-        score,
-        models.subject[subject].max_score,
-        overallRank,
-        totalCandidates
-      );
-    } else {
-      subjectRanks[subject] = null;
-    }
+function normalizeAccuracy(value: number | undefined): number {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return 0.7;
   }
 
-  const trajectory = predictTrajectory(body, models.trajectory);
-
-  return new Response(
-    JSON.stringify({
-      version: "v1",
-      exam,
-      overall_rank: overallRank,
-      subject_ranks: subjectRanks,
-      monthly_improvement_prediction: trajectory
-    }),
-    {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders
-      }
-    }
-  );
-}
-
-async function handleV2Predict(body: any, corsHeaders: Record<string, string>) {
-  validateInput(body);
-
-  const { exam, totalScore, subjectScores = {} } = body;
-
-  const models = await loadModels(exam);
-
-  const maxMarks = models.overall.exam_config.max_marks;
-  const totalCandidates = models.overall.exam_config.total_candidates;
-
-  // === PREDICTIONS ===
-  const overallRank = predictOverallRank(
-    totalScore,
-    maxMarks,
-    totalCandidates,
-    exam
-  );
-
-  // Dynamic Subject Rank Prediction
-  const subjectRanksArray: Record<string, any> = {};
-
-  for (const subject in models.subject) {
-    const score = subjectScores[subject];
-
-    if (score !== undefined) {
-      const subjectRank = predictSubjectRank(
-        score,
-        models.subject[subject].max_score,
-        overallRank,
-        totalCandidates
-      );
-      subjectRanksArray[subject] = {
-        rank: subjectRank,
-        score: score,
-        max_score: models.subject[subject].max_score
-      };
-    } else {
-      subjectRanksArray[subject] = null;
-    }
+  // Accept either 0-1 or 0-100
+  if (value > 1) {
+    return Math.min(1, value / 100);
   }
 
-  // === PROBABILITY DISTRIBUTION ===
-  const probabilityDist = generateProbabilityDistribution(overallRank, totalCandidates);
-
-  // === TRAJECTORY PROJECTION ===
-  const trajectoryProj = generateFullTrajectory(body, overallRank, models.trajectory, totalCandidates);
-
-  // === WHAT-IF SCENARIOS ===
-  const scenarios = generateWhatIfScenarios(body, overallRank, models);
-
-  // === MODEL METADATA ===
-  const modelMetadata = {
-    model_accuracy: models.overall.metrics?.test_r2 || 0.85,
-    confidence_level: `High (R² = ${(models.overall.metrics?.test_r2 || 0.85).toFixed(2)})`,
-    prediction_timestamp: new Date().toISOString(),
-    exam_name: models.overall.exam || exam
-  };
-
-  // === BUILD V2 RESPONSE ===
-  return new Response(
-    JSON.stringify({
-      exam,
-      overall_prediction: {
-        predicted_rank: overallRank,
-        confidence_68: [
-          probabilityDist.ranges.find(r => r.probability === 68)?.min_rank || 1,
-          probabilityDist.ranges.find(r => r.probability === 68)?.max_rank || totalCandidates
-        ],
-        confidence_95: [
-          probabilityDist.ranges.find(r => r.probability === 95)?.min_rank || 1,
-          probabilityDist.ranges.find(r => r.probability === 95)?.max_rank || totalCandidates
-        ],
-        percentile: probabilityDist.percentile
-      },
-      subject_predictions: subjectRanksArray,
-      probability_distribution: {
-        ranges: probabilityDist.ranges
-      },
-      trajectory: trajectoryProj,
-      what_if_scenarios: scenarios,
-      model_metadata: modelMetadata
-    }),
-    {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders
-      }
-    }
-  );
+  return Math.max(0, Math.min(1, value));
 }
 
 export default {
-  async fetch(request: Request) {
+  async fetch(request: Request): Promise<Response> {
     const corsHeaders = getCorsHeaders();
 
-    // Handle CORS preflight
     if (request.method === "OPTIONS") {
-      return new Response(null, {
-        status: 204,
-        headers: corsHeaders
-      });
+      return new Response(null, { status: 204, headers: corsHeaders });
     }
 
     if (request.method !== "POST") {
-      return new Response("Method Not Allowed", {
+      return new Response("Only POST allowed", {
         status: 405,
         headers: corsHeaders
       });
     }
 
-    const url = new URL(request.url);
-
     try {
-      const body = await request.json();
+      const body = (await request.json()) as any;
 
-      if (url.pathname === "/v1/predict") {
-        return await handleV1Predict(body, corsHeaders);
-      } else if (url.pathname === "/v2/predict") {
-        return await handleV2Predict(body, corsHeaders);
-      } else {
+      const exam = body.exam?.toLowerCase();
+      if (!exam || !SUPPORTED_EXAMS.includes(exam)) {
         return new Response(
           JSON.stringify({
-            error: "Endpoint not found. Use /v1/predict or /v2/predict"
+            error: `Unsupported exam. Must be one of: ${SUPPORTED_EXAMS.join(", ")}`
           }),
-          {
-            status: 404,
-            headers: {
-              "Content-Type": "application/json",
-              ...corsHeaders
-            }
-          }
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       }
-    } catch (err: any) {
+
+      const totalScore = body.totalScore;
+      if (typeof totalScore !== "number") {
+        return new Response(
+          JSON.stringify({ error: "Invalid totalScore" }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      const subjectScores = body.subjectScores || {};
+
+      const examData = loadExamConfig(exam) as Record<string, any>;
+
+      const maxMarks = examData.exam_config.max_marks;
+      const totalCandidates = examData.exam_config.total_candidates;
+
+      const overallRank = predictOverallRank(exam, totalScore);
+
+      // Get subject keys dynamically
+      const subjectKeys = Object.keys(examData).filter(
+        (key) => key !== "exam_config"
+      );
+
+      const subjectRanks: Record<string, number | null> = {};
+
+      for (const subjectName of subjectKeys) {
+        const score = subjectScores[subjectName];
+
+        if (typeof score === "number") {
+          const subjectConfig = examData[subjectName];
+          subjectRanks[subjectName] = predictSubjectRank(
+            subjectName,
+            score,
+            subjectConfig.max_score,
+            totalScore,
+            maxMarks,
+            overallRank,
+            totalCandidates,
+            exam
+          );
+        } else {
+          subjectRanks[subjectName] = null;
+        }
+      }
+
+      const rankBand = generateRankSensitivityBand(
+        totalScore,
+        maxMarks,
+        totalCandidates,
+        (score) => predictOverallRank(exam, score)
+      );
+
+      const accuracy = normalizeAccuracy(body.accuracy_percent);
+      const trajectory = generateFullTrajectory(
+        totalScore,
+        maxMarks,
+        accuracy,
+        (score) => predictOverallRank(exam, score)
+      );
+
+      // Structure models object for scenarios function
+      const models = {
+        overall: {
+          exam_config: examData.exam_config
+        },
+        subject: Object.keys(examData)
+          .filter(key => key !== "exam_config")
+          .reduce((acc, key) => {
+            acc[key] = examData[key];
+            return acc;
+          }, {} as Record<string, any>)
+      };
+
+      const scenarios = generateWhatIfScenarios(body, overallRank, models);
+
       return new Response(
         JSON.stringify({
-          error: err.message || "Internal Server Error"
+          version: "v2",
+          exam,
+          overall_prediction: rankBand,
+          overall_rank: overallRank,
+          subject_ranks: subjectRanks,
+          trajectory,
+          what_if_scenarios: scenarios
         }),
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "application/json",
-            ...corsHeaders
-          }
-        }
+        { headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    } catch (err: any) {
+      return new Response(
+        JSON.stringify({ error: err.message || "Internal Server Error" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
   }

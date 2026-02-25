@@ -1,56 +1,62 @@
-export function predictTrajectory(input: any, trajectoryMeta: any) {
-  let improvement = trajectoryMeta.intercept;
+function calculateMonthlyImprovement(
+  currentScore: number,
+  maxScore: number,
+  accuracy: number
+): number {
 
-  for (const coeff of trajectoryMeta.coefficients) {
-    const featureValue = input[coeff.feature] || 0;
-    improvement += featureValue * coeff.coefficient;
+  const scoreRatio = currentScore / maxScore;
+
+  let improvement = 0;
+
+  // Base improvement from accuracy
+  if (accuracy >= 0.85) {
+    improvement = 6; // strong conceptual clarity
+  } else if (accuracy >= 0.70) {
+    improvement = 8;
+  } else if (accuracy >= 0.55) {
+    improvement = 10;
+  } else if (accuracy >= 0.40) {
+    improvement = 7;
+  } else {
+    improvement = 4; // needs fundamentals
   }
 
-  const [minImp, maxImp] = trajectoryMeta.monthly_improvement_range;
+  // Apply plateau effect
+  if (scoreRatio > 0.90) {
+    improvement *= 0.4;
+  } else if (scoreRatio > 0.80) {
+    improvement *= 0.6;
+  } else if (scoreRatio > 0.70) {
+    improvement *= 0.8;
+  }
 
-  if (improvement < minImp) improvement = minImp;
-  if (improvement > maxImp) improvement = maxImp;
-
-  return Math.round(improvement);
-}
-
-export interface TrajectoryProjection {
-  monthly_improvement_rate: number;
-  rank_after_1_month: number;
-  rank_after_3_months: number;
-  rank_after_6_months: number;
+  return improvement;
 }
 
 export function generateFullTrajectory(
-  input: any,
-  currentRank: number,
-  trajectoryMeta: any,
-  totalCandidates: number
-): TrajectoryProjection {
-  // Calculate monthly improvement rate as a percentage
-  let monthlyImprovement = trajectoryMeta.intercept;
+  currentScore: number,
+  maxScore: number,
+  accuracy: number,
+  predictRankFromScore: (score: number) => number
+) {
 
-  for (const coeff of trajectoryMeta.coefficients) {
-    const featureValue = input[coeff.feature] || 0;
-    monthlyImprovement += featureValue * coeff.coefficient;
-  }
+  const monthlyImprovement = calculateMonthlyImprovement(
+    currentScore,
+    maxScore,
+    accuracy
+  );
 
-  const [minImp, maxImp] = trajectoryMeta.monthly_improvement_range;
-  monthlyImprovement = Math.max(minImp, Math.min(maxImp, monthlyImprovement));
-
-  // Convert percentage improvement to decimal rate (e.g., 5% = 0.05)
-  const monthlyRate = monthlyImprovement / 100;
-
-  // Project future ranks based on exponential decay of rank over time
-  // Formula: future_rank = current_rank * (1 - monthly_rate)^months
-  const rankAfter1Month = Math.max(1, Math.min(totalCandidates, Math.round(currentRank * Math.pow(1 - monthlyRate, 1))));
-  const rankAfter3Months = Math.max(1, Math.min(totalCandidates, Math.round(currentRank * Math.pow(1 - monthlyRate, 3))));
-  const rankAfter6Months = Math.max(1, Math.min(totalCandidates, Math.round(currentRank * Math.pow(1 - monthlyRate, 6))));
+  const score1 = Math.min(maxScore, currentScore + monthlyImprovement * 1);
+  const score3 = Math.min(maxScore, currentScore + monthlyImprovement * 3);
+  const score6 = Math.min(maxScore, currentScore + monthlyImprovement * 6);
 
   return {
-    monthly_improvement_rate: Math.round(monthlyImprovement * 100) / 100,
-    rank_after_1_month: rankAfter1Month,
-    rank_after_3_months: rankAfter3Months,
-    rank_after_6_months: rankAfter6Months
+    monthly_score_improvement: monthlyImprovement,
+    projected_score_1_month: score1,
+    projected_score_3_months: score3,
+    projected_score_6_months: score6,
+    rank_after_1_month: predictRankFromScore(score1),
+    rank_after_3_months: predictRankFromScore(score3),
+    rank_after_6_months: predictRankFromScore(score6)
   };
 }
